@@ -1,57 +1,34 @@
-package financial.dart;
+package financial.dart.controller;
 
+import financial.dart.domain.Corporation;
+import financial.dart.service.CorporationService;
+import financial.dart.service.FinancialService;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-public class DataController {
+@RequiredArgsConstructor
+public class FinancialController {
 
-    @Getter
-    @Builder
-    static class FinancialData {
-        private String sj_div;      // 재무제표 구분 (BS, IS 등)
-        private String sj_nm;       // 재무제표 명 (재무상태표 등)
-        private String account_nm;  // 계정명 (자산총계 등)
-        private String thstrm_amount; // 당기금액
-        private String frmtrm_amount; // 전기금액
-        private String bfefrmtrm_amount; // 전전기금액
-        private String ord;         // 정렬순서
-    }
+    private final FinancialService financialService;
+
+    @Value("${dart.api-key}")
+    private String apiKey;
 
     @GetMapping(value = "/data", produces = MediaType.TEXT_HTML_VALUE)
-    public String getAllFinancialData(
-            @RequestParam(defaultValue = "00126380") String corp_code,
-            @RequestParam(defaultValue = "2024") String bsns_year,
-            @RequestParam(defaultValue = "11011") String reprt_code,
-            @RequestParam(defaultValue = "CFS") String fs_div
+    public void getAllFinancialData(
+            @RequestParam(defaultValue = "2024") String bsns_year
     ) {
-        String apiKey = "34fb88f333d40856fd64c1ced2f5b052feee2eeb";
-        String url = String.format(
-                "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key=%s&corp_code=%s&bsns_year=%s&reprt_code=%s&fs_div=%s",
-                apiKey, corp_code, bsns_year, reprt_code, fs_div
-        );
-
-        RestTemplate restTemplate = new RestTemplate();
-        try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            List<Map<String, String>> list = (List<Map<String, String>>) response.get("list");
-
-            if (list == null || list.isEmpty()) {
-                return "<h3>데이터가 없거나 호출에 실패했습니다. (메시지: " + response.get("message") + ")</h3>";
-            }
-
-            return renderFullHtml(list, corp_code, bsns_year);
-        } catch (Exception e) {
-            return "<h1>에러 발생: " + e.getMessage() + "</h1>";
-        }
+        financialService.syncQuarterlyData(bsns_year);
     }
 
     private String renderFullHtml(List<Map<String, String>> list, String corpCode, String year) {
@@ -115,7 +92,9 @@ public class DataController {
         if (val.matches("-?\\d+")) {
             try {
                 return String.format("%,d", Long.parseLong(val));
-            } catch (Exception e) { return val; }
+            } catch (Exception e) {
+                return val;
+            }
         }
         return val;
     }

@@ -1,8 +1,8 @@
-package financial.dart;
+package financial.dart.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Builder;
-import lombok.Getter;
+import financial.dart.domain.Corporation;
+import financial.dart.service.CorporationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,56 +20,52 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @RestController
+@RequiredArgsConstructor
 public class CodeController {
+
+    private final CorporationService corporationService;
 
     @Value("${dart.api-key}")
     private String apiKey;
 
-    @Getter
-    @Builder
-    static class Corp {
-        private String crp; // corp_code (짧게 줄임)
-        private String nm;  // corp_name
-        private String sc;  // stock_code
-        private String md;  // modify_date
-    }
-
-    @GetMapping(value = "/code", produces = MediaType.TEXT_HTML_VALUE)
-    public String getCode() {
-        String url = "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=" + apiKey;
-
-        List<Corp> corpList = new ArrayList<>();
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            byte[] response = restTemplate.getForObject(url, byte[].class);
-
-            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(response))) {
-                ZipEntry entry = zis.getNextEntry();
-                if (entry != null) {
-                    Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(zis);
-                    NodeList nodes = doc.getElementsByTagName("list");
-
-                    // 9만 건 전체 파싱
-                    for (int i = 0; i < nodes.getLength(); i++) {
-                        Element el = (Element) nodes.item(i);
-                        corpList.add(Corp.builder()
-                                .crp(el.getElementsByTagName("corp_code").item(0).getTextContent())
-                                .nm(el.getElementsByTagName("corp_name").item(0).getTextContent().replace("'", "\\'"))
-                                .sc(el.getElementsByTagName("stock_code").item(0).getTextContent().trim())
-                                .md(el.getElementsByTagName("modify_date").item(0).getTextContent())
-                                .build());
-                    }
-                }
-            }
-
-            // 데이터를 JSON으로 변환
-            String jsonOutput = new ObjectMapper().writeValueAsString(corpList);
-            return renderHtml(jsonOutput);
-
-        } catch (Exception e) {
-            return "<h1>데이터 로딩 실패: " + e.getMessage() + "</h1>";
-        }
-    }
+//    @GetMapping(value = "/code", produces = MediaType.TEXT_HTML_VALUE)
+//    public void getCode() {
+//        String url = "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=" + apiKey;
+//
+//        List<Corporation> corporationList = new ArrayList<>();
+//        try {
+//            RestTemplate restTemplate = new RestTemplate();
+//            byte[] response = restTemplate.getForObject(url, byte[].class);
+//
+//            try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(response))) {
+//                ZipEntry entry = zis.getNextEntry();
+//                if (entry != null) {
+//                    Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(zis);
+//                    NodeList nodes = doc.getElementsByTagName("list");
+//
+//                    // 9만 건 전체 파싱
+//                    for (int i = 0; i < nodes.getLength(); i++) {
+//                        Element el = (Element) nodes.item(i);
+//
+//                        Corporation corp = Corporation.builder()
+//                                .corpCode(el.getElementsByTagName("corp_code").item(0).getTextContent())
+//                                .corpName(el.getElementsByTagName("corp_name").item(0).getTextContent())
+//                                .stockCode(el.getElementsByTagName("stock_code").item(0).getTextContent().trim())
+//                                .modifyDate(el.getElementsByTagName("modify_date").item(0).getTextContent())
+//                                .build();
+//
+//                        corporationList.add(corp);
+//                    }
+//                }
+//                corporationService.saveCorporationData(corporationList);
+//
+//            } catch (Exception e) {
+//                return;
+//            }
+//        } catch (Exception e) {
+//            return;
+//        }
+//    }
 
     private String renderHtml(String jsonData) {
         return "<html><head>" +

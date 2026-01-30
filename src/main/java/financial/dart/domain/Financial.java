@@ -1,0 +1,118 @@
+package financial.dart.domain;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+public class Financial {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 4)
+    private String bsnsYear;    // 사업연도 (예: 2025)
+
+    @Column(nullable = false, length = 5)
+    private String reprtCode;   // 보고서 코드 (11013, 11012, 11014, 11011)
+
+    // --- [ 손익계산서 (IS) 항목 ] ---
+    private Long revenue;          // 매출액
+    private Long op;               // 영업이익
+    private Long ni;               // 당기순이익
+    private Long grossProfit;      // 매출총이익
+    private Long financeCosts;       // 금융비용
+
+    // --- [ 재무상태표 (BS) 항목 ] ---
+    private Long totalAssets;      // 자산총계
+    private Long totalLiabilities; // 부채총계
+    private Long totalEquity;      // 자본총계
+    private Long capStock;         // 자본금
+    private Long curAssets;        // 유동자산
+    private Long curLiabilities;   // 유동부채
+
+    // --- [ 성장성(YoY) 계산용 전년 동기 데이터 ] ---
+    private Long prevRevenue;      // 전기 매출액
+    private Long prevOp;           // 전기 영업이익
+    private Long prevNi;           // 전기 당기순이익
+    private Long prevTotalAssets;  // 전기 자산총계
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "corporation_id")
+    private Corporation corporation; // 회사 정보 (외래키)
+
+    // ==========================================
+    // ① 수익성 지표 (Profitability)
+    // ==========================================
+
+    public double getGrossProfitMargin() { // 매출총이익률
+        return calculateRatio(grossProfit, revenue);
+    }
+
+    public double getOpMargin() { // 매출액 영업이익률
+        return calculateRatio(op, revenue);
+    }
+
+    public double getRoe() { // 자기자본이익률 (ROE)
+        return calculateRatio(ni, totalEquity);
+    }
+
+    public double getNiMargin() { // 순이익률
+        return calculateRatio(ni, revenue);
+    }
+
+    public double getNiGrowth() { // 순이익 성장률 (순이익 증가율)
+        return calculateGrowth(ni, prevNi);
+    }
+
+    // ==========================================
+    // ② 성장성 지표 (Growth)
+    // ==========================================
+
+    public double getRevenueGrowth() { // 매출액 증가율
+        return calculateGrowth(revenue, prevRevenue);
+    }
+
+    public double getOpGrowth() { // 영업이익 성장률 (영업이익 증가율)
+        return calculateGrowth(op, prevOp);
+    }
+
+    public double getAssetGrowth() { // 총자산 증가율
+        return calculateGrowth(totalAssets, prevTotalAssets);
+    }
+
+    // ==========================================
+    // ③ 안정성 지표 (Stability)
+    // ==========================================
+
+    public double getDebtRatio() { // 부채비율
+        return calculateRatio(totalLiabilities, totalEquity);
+    }
+
+    public double getInterestCoverageRatio() { // 이자보상비율
+        if (financeCosts == null || financeCosts == 0) return 0.0;
+        return (double) op / financeCosts; // 배수이므로 * 100 안 함
+    }
+
+    public double getCurrentRatio() { // 유동비율
+        return calculateRatio(curAssets, curLiabilities);
+    }
+
+    // ==========================================
+    // 유틸리티 메서드 (NPE 및 0 나누기 방지)
+    // ==========================================
+
+    private double calculateRatio(Long numerator, Long denominator) {
+        if (numerator == null || denominator == null || denominator == 0) return 0.0;
+        return (double) numerator / denominator * 100;
+    }
+
+    private double calculateGrowth(Long current, Long previous) {
+        if (current == null || previous == null || previous == 0) return 0.0;
+        return (double) (current - previous) / previous * 100;
+    }
+}
