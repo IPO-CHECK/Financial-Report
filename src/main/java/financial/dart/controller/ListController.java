@@ -1,5 +1,7 @@
 package financial.dart.controller;
 
+import financial.dart.service.CorporationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -13,11 +15,14 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequiredArgsConstructor
 public class ListController {
 
     @Value("${dart.api-key}")
     private String apiKey;
-    private final RestTemplate restTemplate = new RestTemplate();
+
+    private final CorporationService corporationService;
+    private final RestTemplate restTemplate;
 
     @GetMapping("/list")
     public String checkCriteria(@RequestParam String corpCode) {
@@ -128,8 +133,6 @@ public class ListController {
                     .queryParam("bsns_year", year)
                     .queryParam("reprt_code", "11011") // 사업보고서 고정
                     .toUriString();
-
-            System.out.println("[Debug] 감사의견 확인 URL (" + year + "): " + url);
 
             try {
                 Map<String, Object> response = restTemplate.getForObject(url, Map.class);

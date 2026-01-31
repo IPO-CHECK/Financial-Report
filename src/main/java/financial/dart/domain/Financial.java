@@ -25,7 +25,7 @@ public class Financial {
     private Long op;               // 영업이익
     private Long ni;               // 당기순이익
     private Long grossProfit;      // 매출총이익
-    private Long financeCosts;       // 금융비용
+    private Long financeCosts;       // 금융비용(이자)
 
     // --- [ 재무상태표 (BS) 항목 ] ---
     private Long totalAssets;      // 자산총계
@@ -44,6 +44,17 @@ public class Financial {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corporation_id")
     private Corporation corporation; // 회사 정보 (외래키)
+
+    public double[] getAnalysisVector() {
+        return new double[]{
+                getRevenueGrowth(),  // 1. 매출액 증가율 (성장)
+                getOpGrowth(),       // 2. 영업이익 증가율 (성장)
+                getNiGrowth(),       // 3. 순이익 증가율 (성장)
+                getOpMargin(),       // 4. 영업이익률 (수익)
+                getNiMargin(),       // 5. 순이익률 (수익)
+                getAssetTurnover()   // 6. 자산회전율 (효율/구조)
+        };
+    }
 
     // ==========================================
     // ① 수익성 지표 (Profitability)
@@ -100,6 +111,17 @@ public class Financial {
 
     public double getCurrentRatio() { // 유동비율
         return calculateRatio(curAssets, curLiabilities);
+    }
+
+    /**
+     * 자산회전율 (Asset Turnover)
+     * 의미: 자산을 얼마나 효율적으로 굴려서 매출을 만들었는가?
+     * 공식: 매출액 / 자산총계
+     * (주의: 이건 %가 아니라 '배수'입니다. 1.5배, 0.8배 등)
+     */
+    public double getAssetTurnover() {
+        if (revenue == null || totalAssets == null || totalAssets == 0) return 0.0;
+        return (double) revenue / totalAssets; // * 100 안 함!
     }
 
     // ==========================================

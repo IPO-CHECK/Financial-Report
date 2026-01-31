@@ -5,8 +5,8 @@ import financial.dart.domain.DartConstants;
 import financial.dart.domain.Financial;
 import financial.dart.repository.CorporationRepository;
 import financial.dart.repository.FinancialRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -18,43 +18,78 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FinancialService {
 
     private final FinancialRepository financialRepository;
     private final CorporationRepository corporationRepository;
+    private final RestTemplate restTemplate;
 
     @Value("${dart.api-key}")
     private String apiKey;
 
+    public Financial findByFinancialId(Long financialId) {
+        return financialRepository.findById(financialId).orElse(null);
+    }
+
+    /**
+     * 매출액, 자산총계, 자본총계 0.2배 ~ 5배 이내
+     */
+    public List<Financial> findSimilarCorporations(List<Long> corpIds, Long revenue, Long totalAssets, Long totalEquity) {
+        return financialRepository.findByCorporationId(corpIds, revenue, totalAssets, totalEquity);
+    }
+
     /**
      * 특정 기업의 특정 연도 1~4분기 데이터를 모두 수집하여 저장
      */
-    @Transactional
     public void syncQuarterlyData(String year) {
         List<Corporation> corporations = corporationRepository.findCorps();
-        for(Corporation corp : corporations) {
-            // 1. 4가지 보고서 데이터 모두 호출 (API Call)
-            List<Map<String, String>> q1List = callApi(corp.getCorpCode(), year, "11013"); // 1분기
-            List<Map<String, String>> q2List = callApi(corp.getCorpCode(), year, "11012"); // 반기
-            List<Map<String, String>> q3List = callApi(corp.getCorpCode(), year, "11014"); // 3분기
-            List<Map<String, String>> annualList = callApi(corp.getCorpCode(), year, "11011"); // 사업보고서(연간)
 
-            List<Financial> batchList = new ArrayList<>();
+        int success = 0;
+        int fail = 0;
+        int count = 1;
 
-            // 2. [1분기, 2분기, 3분기] 데이터 생성 (단순 매핑)
-            if (!q1List.isEmpty()) batchList.add(mapToEntity(q1List, corp, year, "11013"));
-            if (!q2List.isEmpty()) batchList.add(mapToEntity(q2List, corp, year, "11012"));
-            if (!q3List.isEmpty()) batchList.add(mapToEntity(q3List, corp, year, "11014"));
-
-            // 3. [4분기] 데이터 생성 (핵심 로직: 연간 - 3분기누적)
-            if (!annualList.isEmpty() && !q3List.isEmpty()) {
-                Financial q4Entity = calculateQ4(annualList, q3List, corp, year);
-                batchList.add(q4Entity);
+        for (Corporation corp : corporations) {
+            try {
+                singleSyncQuarterlyData(corp, year);
+                success++;
+                Thread.sleep(1000);
+                log.info("진행도: {}/{} 완료", count++, corporations.size());
+            } catch (Exception e) {
+                fail++;
+                log.error("실패 [{}]: {}", corp.getCorpName(), e.getMessage());
             }
-
-            // 4. DB 일괄 저장
-            financialRepository.saveAll(batchList);
         }
+        log.info("배치 종료 - 성공: {}, 실패: {}", success, fail);
+    }
+
+    public void singleSyncQuarterlyData(Corporation corp, String year) {
+        List<Map<String, String>> q1List = callApi(corp.getCorpCode(), year, "11013"); // 1분기
+        List<Map<String, String>> q2List = callApi(corp.getCorpCode(), year, "11012"); // 반기
+        List<Map<String, String>> q3List = callApi(corp.getCorpCode(), year, "11014"); // 3분기
+        List<Map<String, String>> annualList = callApi(corp.getCorpCode(), year, "11011"); // 사업보고서(연간)
+
+        List<Financial> batchList = new ArrayList<>();
+
+        // 2. [1분기, 2분기, 3분기] 데이터 생성 (단순 매핑)
+        if (!q1List.isEmpty()) batchList.add(mapToEntity(q1List, corp, year, "11013"));
+        if (!q2List.isEmpty()) batchList.add(mapToEntity(q2List, corp, year, "11012"));
+        if (!q3List.isEmpty()) batchList.add(mapToEntity(q3List, corp, year, "11014"));
+
+        // 3. [4분기] 데이터 생성 (핵심 로직: 연간 - 3분기누적)
+        if (!annualList.isEmpty() && !q3List.isEmpty()) {
+            Financial q4Entity = calculateQ4(annualList, q3List, corp, year);
+            batchList.add(q4Entity);
+        }
+
+        // 4. DB 일괄 저장
+        if (!batchList.isEmpty()) {
+            financialRepository.saveAll(batchList);
+            log.info("처리 완료: {} ({})", corp.getCorpName(), corp.getCorpCode());
+        } else {
+            log.warn("데이터 없음: {} ({})", corp.getCorpName(), corp.getCorpCode());
+        }
+
     }
 
     // --- [내부 로직 1] 일반 분기(1,2,3Q) 매핑 ---
@@ -151,22 +186,40 @@ public class FinancialService {
 
     // --- [유틸] API 호출 ---
     private List<Map<String, String>> callApi(String corpCode, String year, String reportCode) {
-        RestTemplate restTemplate = new RestTemplate();
+        List<Map<String, String>> result = fetch(corpCode, year, reportCode, "CFS");
+        if (result.isEmpty()) {
+            result = fetch(corpCode, year, reportCode, "OFS");
+        }
+        return result;
+    }
+
+    // 중복 제거를 위한 내부 호출 메서드
+    private List<Map<String, String>> fetch(String corpCode, String year, String reportCode, String div) {
         String url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json?crtfc_key=" + apiKey
                 + "&corp_code=" + corpCode
                 + "&bsns_year=" + year
                 + "&reprt_code=" + reportCode
-                + "&fs_div=CFS";
-
+                + "&fs_div=" + div;
         try {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+            }
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
             if (response != null && response.get("list") != null) {
                 return (List<Map<String, String>>) response.get("list");
             }
         } catch (Exception e) {
-
-            e.printStackTrace();
+            log.warn("API 호출 실패 [{}]: {}-{} ({})", div, corpCode, reportCode, e.getMessage());
         }
         return Collections.emptyList();
+    }
+
+    private void sleep() {
+        try {
+            Thread.sleep(300); // 300~400ms
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

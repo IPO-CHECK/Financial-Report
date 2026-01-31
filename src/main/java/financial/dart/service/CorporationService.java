@@ -24,8 +24,11 @@ public class CorporationService {
         }
     }
 
-
     public List<Corporation> getCorps() {
         return corporationRepository.findCorps();
+    }
+
+    public List<Long> findQualifiedCorpIds() {
+        return corporationRepository.findQualifiedCorporationIds();
     }
 }
