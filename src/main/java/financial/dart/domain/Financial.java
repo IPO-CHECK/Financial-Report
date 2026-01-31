@@ -45,15 +45,29 @@ public class Financial {
     @JoinColumn(name = "corporation_id")
     private Corporation corporation; // 회사 정보 (외래키)
 
+//    public double[] getAnalysisVector() {
+//        return new double[]{
+//                getRevenueGrowth(),  // 1. 매출액 증가율 (성장)
+//                getOpGrowth(),       // 2. 영업이익 증가율 (성장)
+//                getNiGrowth(),       // 3. 순이익 증가율 (성장)
+//                getOpMargin(),       // 4. 영업이익률 (수익)
+//                getNiMargin(),       // 5. 순이익률 (수익)
+//                getAssetTurnover()   // 6. 자산회전율 (효율/구조)
+//        };
+//    }
+
     public double[] getAnalysisVector() {
-        return new double[]{
-                getRevenueGrowth(),  // 1. 매출액 증가율 (성장)
-                getOpGrowth(),       // 2. 영업이익 증가율 (성장)
-                getNiGrowth(),       // 3. 순이익 증가율 (성장)
-                getOpMargin(),       // 4. 영업이익률 (수익)
-                getNiMargin(),       // 5. 순이익률 (수익)
-                getAssetTurnover()   // 6. 자산회전율 (효율/구조)
-        };
+        // 1. 숫자가 너무 커서 다른 지표를 잡아먹는 '증가율' 형님들은 로그 처리
+        double v1 = applyLog(getRevenueGrowth());
+        double v2 = applyLog(getOpGrowth());
+        double v3 = applyLog(getNiGrowth());
+
+        // 2. 얌전한 '비율' 친구들은 그대로 (혹은 자산회전율만 x100 등 스케일 보정)
+        double v4 = getOpMargin();
+        double v5 = getNiMargin();
+        double v6 = getAssetTurnover() * 10; // 회전율이 너무 작으면(0.15) x10 정도 해줘도 됨
+
+        return new double[] { v1, v2, v3, v4, v5, v6 };
     }
 
     // ==========================================
@@ -136,5 +150,12 @@ public class Financial {
     private double calculateGrowth(Long current, Long previous) {
         if (current == null || previous == null || previous == 0) return 0.0;
         return (double) (current - previous) / previous * 100;
+    }
+
+    // 로그 변환 헬퍼 (음수 처리 포함)
+    private double applyLog(Double val) {
+        if (val == null || val == 0) return 0.0;
+        // 부호는 살리고 절대값에만 로그 적용 (900 -> 6.8, -20 -> -3.0)
+        return Math.signum(val) * Math.log10(Math.abs(val) + 1);
     }
 }

@@ -20,6 +20,13 @@ public interface FinancialRepository extends JpaRepository<Financial, Long> {
             "WHERE f.corporation.id IN :corpIds AND" +
             " f.revenue BETWEEN :revenue * 0.2 AND :revenue * 5 AND" +
             " f.totalAssets BETWEEN :totalAssets * 0.2 AND :totalAssets * 5 AND" +
-            " f.totalEquity BETWEEN :totalEquity * 0.2 AND :totalEquity * 5")
-    List<Financial> findByCorporationId(@Param("corpIds") List<Long> corpIds, @Param("revenue") Long revenue, @Param("totalAssets") Long totalAssets, @Param("totalEquity") Long totalEquity);
+            " f.totalEquity BETWEEN :totalEquity * 0.2 AND :totalEquity * 5 AND " +
+            " f.bsnsYear = :year AND " +
+            " f.reprtCode = :reprtCode")
+    List<Financial> findByCorporationId(@Param("corpIds") List<Long> corpIds,
+                                        @Param("revenue") Long revenue,
+                                        @Param("totalAssets") Long totalAssets,
+                                        @Param("totalEquity") Long totalEquity,
+                                        @Param("year") String year,
+                                        @Param("reprtCode") String reprtCode);
 }

@@ -24,23 +24,11 @@ public class FinancialController {
     @Value("${dart.api-key}")
     private String apiKey;
 
-    @GetMapping(value = "/data", produces = MediaType.TEXT_HTML_VALUE)
-    public void getAllFinancialData(
-            @RequestParam(defaultValue = "2023") String bsns_year) {
-        financialService.syncQuarterlyData(bsns_year);
-    }
-
-    @Getter
-    @Builder
-    static class FinancialData {
-        private String sj_div;      // 재무제표 구분 (BS, IS 등)
-        private String sj_nm;       // 재무제표 명 (재무상태표 등)
-        private String account_nm;  // 계정명 (자산총계 등)
-        private String thstrm_amount; // 당기금액
-        private String frmtrm_amount; // 전기금액
-        private String bfefrmtrm_amount; // 전전기금액
-        private String ord;         // 정렬순서
-    }
+//    @GetMapping(value = "/data", produces = MediaType.TEXT_HTML_VALUE)
+//    public void getAllFinancialData(
+//            @RequestParam(defaultValue = "2023") String bsns_year) {
+//        financialService.syncQuarterlyData(bsns_year);
+//    }
 
     @GetMapping(value = "/search", produces = MediaType.TEXT_HTML_VALUE)
     public String getAllFinancialData(

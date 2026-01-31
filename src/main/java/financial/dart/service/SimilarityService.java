@@ -15,6 +15,7 @@ public class SimilarityService {
     public static class SimilarityResult {
         private Financial financial; // 후보 기업 재무정보
         private double score;        // 유사도 점수 (1.0에 가까울수록 똑같음)
+        private double[] vector;     // 표준화된 벡터
     }
 
     /**
@@ -39,7 +40,7 @@ public class SimilarityService {
                 .map(candidate -> {
                     double[] candidateVector = normalizedMap.get(candidate);
                     double score = calculateCosineSimilarity(targetVector, candidateVector);
-                    return new SimilarityResult(candidate, score);
+                    return new SimilarityResult(candidate, score, candidateVector);
                 })
                 .sorted(Comparator.comparingDouble(SimilarityResult::getScore).reversed()) // 점수 높은 순 정렬
                 .limit(topN) // Top N 자르기

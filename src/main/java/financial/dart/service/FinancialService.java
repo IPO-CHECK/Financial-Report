@@ -35,8 +35,9 @@ public class FinancialService {
     /**
      * 매출액, 자산총계, 자본총계 0.2배 ~ 5배 이내
      */
-    public List<Financial> findSimilarCorporations(List<Long> corpIds, Long revenue, Long totalAssets, Long totalEquity) {
-        return financialRepository.findByCorporationId(corpIds, revenue, totalAssets, totalEquity);
+    public List<Financial> findSimilarCorporations(List<Long> corpIds, Financial financial, String year, int quarter) {
+        return financialRepository.findByCorporationId(corpIds,
+                financial.getRevenue(), financial.getTotalAssets(), financial.getTotalEquity(), year, convertToCode(quarter));
     }
 
     /**
@@ -221,5 +222,12 @@ public class FinancialService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private String convertToCode(int quarter) {
+        if (quarter == 1) return "11013";
+        else if (quarter == 2) return "11012";
+        else if (quarter == 3) return "11014";
+        else return "11011";
     }
 }

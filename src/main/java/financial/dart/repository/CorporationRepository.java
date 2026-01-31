@@ -13,16 +13,22 @@ public interface CorporationRepository extends JpaRepository<Corporation, Long> 
     @Query("SELECT distinct c " +
             "FROM Corporation c " +
             "join Financial f ON f.corporation.id = c.id " +
-            "WHERE c.stockCode IS NOT NULL ")
+            "WHERE c.stockCode IS NOT NULL and c.stockCode <> '' ")
     List<Corporation> findCorps();
 
     @Query("SELECT c FROM Corporation c WHERE c.corpCode = :corpCode")
     Corporation findByCorpCode(@Param("corpCode") String corpCode);
 
+    // TODO 원래 이 쿼리인데 boolean 3개 칼럼이 제대로 처리 안 되는 듯
+//    @Query("SELECT c.id " +
+//            "FROM Corporation c " +
+//            "WHERE c.hasNoMajorChanges = true " +
+//            "and c.hasUnqualifiedOpinion = true " +
+//            "and c.isOver3Months = true " +
+//            "and c.stockCode IS NOT NULL and " +
+//            "c.stockCode <> '' ")
     @Query("SELECT c.id " +
             "FROM Corporation c " +
-            "WHERE c.hasNoMajorChanges = true " +
-            "and c.hasUnqualifiedOpinion = true " +
-            "and c.isOver3Months = true ")
+            "where c.stockCode IS NOT NULL and c.stockCode <> '' ")
     List<Long> findQualifiedCorporationIds();
 }

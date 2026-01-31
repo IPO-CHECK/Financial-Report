@@ -27,4 +27,16 @@ public class Corporation {
     private boolean hasUnqualifiedOpinion;
     // 최근 2년간 합병, 영업의 양수, 분할이 없는지
     private boolean hasNoMajorChanges;
+
+    public void updateIsOver3Months(boolean status) {
+        this.isOver3Months = status;
+    }
+
+    public void updateHasUnqualifiedOpinion(boolean status) {
+        this.hasUnqualifiedOpinion = status;
+    }
+
+    public void updateHasNoMajorChanges(boolean status) {
+        this.hasNoMajorChanges = status;
+    }
 }
