@@ -24,11 +24,11 @@ public class FinancialController {
     @Value("${dart.api-key}")
     private String apiKey;
 
-//    @GetMapping(value = "/data", produces = MediaType.TEXT_HTML_VALUE)
-//    public void getAllFinancialData(
-//            @RequestParam(defaultValue = "2023") String bsns_year) {
-//        financialService.syncQuarterlyData(bsns_year);
-//    }
+    @GetMapping(value = "/data", produces = MediaType.TEXT_HTML_VALUE)
+    public void getAllFinancialData(
+            @RequestParam(defaultValue = "2022") String bsns_year) {
+        financialService.syncQuarterlyData(bsns_year);
+    }
 
     @GetMapping(value = "/search", produces = MediaType.TEXT_HTML_VALUE)
     public String getAllFinancialData(
